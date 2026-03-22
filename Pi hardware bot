@@ -7,9 +7,9 @@ import psutil
 
 
 # config
-pi_name = "charizard01"
-webhook_url = "https://discord.com/api/webhooks/1485199294058332190/vQkuoELSHVPDWb4BKrrJvPSfWt4kqHHzLGCPhm97M1rE7v-e6r2seBI8vDHXg_ZyUzHc"
-Bot_name = "Bearish Bot"
+pi_name = "*"
+webhook_url = "*"
+Bot_name = "*"
 message_id_file = "message_id.txt"
 test_mode_active = True
 cyclic_mode = True #Set to false if testing and want to do each cycle
