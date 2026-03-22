@@ -1,0 +1,209 @@
+import os
+import time
+import json
+import requests
+from datetime import datetime
+import psutil
+
+
+# config
+pi_name = "charizard01"
+webhook_url = "https://discord.com/api/webhooks/1485199294058332190/vQkuoELSHVPDWb4BKrrJvPSfWt4kqHHzLGCPhm97M1rE7v-e6r2seBI8vDHXg_ZyUzHc"
+Bot_name = "Bearish Bot"
+message_id_file = "message_id.txt"
+test_mode_active = True
+cyclic_mode = True #Set to false if testing and want to do each cycle
+cyclic_time = 60 #Sec
+start_up = True
+
+
+def cpu_lookup():
+    cpu_usage = psutil.cpu_percent(interval=1)
+    return cpu_usage
+
+def ram_lookup():
+    ram = psutil.virtual_memory()
+    return ram 
+
+def boot_time_lookup():
+    boot_time = datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
+    return boot_time
+
+def make_bar(percent):
+    bar_length = 10
+
+    filled = int((percent / 100) * bar_length)
+    empty = bar_length - filled
+
+    bar = "█" * filled + "-" * empty
+
+    return(f"[{bar}] {percent}%")
+    
+
+def disk_lookup():
+    disk = psutil.disk_usage()
+    print(type(disk))
+    print(dir(disk))
+    return disk
+
+def create_test_payload(test_message):
+    cpu_usage = cpu_lookup()
+    percent = cpu_usage
+    cpu_bar = make_bar(percent)
+    ram = ram_lookup()
+    percent = ram.percent
+    ram_bar = make_bar(percent)
+    if test_message == "":
+        test_message = "Service is running"
+    
+    return {
+        "username": Bot_name,
+        "embeds": [
+            {
+                "title": "Status Update",
+                "description": f"{test_message}\nCPU: {cpu_bar}%\nRAM used:({ram_bar}\n)",
+                "color": 65232
+            }
+        ]
+    }
+
+def create_real_message():
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    cpu_usage = cpu_lookup()
+    percent = cpu_usage
+    cpu_bar = make_bar(percent)
+    ram = ram_lookup()
+    percent = ram.percent
+    ram_bar = make_bar(percent)
+    boot_time = boot_time_lookup()
+    return{
+       "username": Bot_name,
+        "embeds": [
+            {
+               "title": f"{pi_name}",
+               "description": f"update time: {current_time}\n"
+               f"Boot time: {boot_time}\n"
+               f"Update cycle: {cyclic_time} seconds\n"
+               f"CPU: {cpu_bar}%\n"
+               f"RAM used:({ram_bar}\n"
+               " ",
+               "color": 65280 
+           }
+       ]
+    }   
+
+def save_message_id(message_id):
+    with open(message_id_file, "w", encoding="utf-8") as file:
+        file.write(message_id)
+
+def load_message_id():
+    if os.path.exists(message_id_file):
+        with open(message_id_file, "r", encoding="utf-8") as file:
+            return file.read().strip()
+    return None
+
+def send_webhook_new(payload): #we only do this once!
+    try:
+        response = requests.post(webhook_url + "?wait=true", json=payload, timeout=10)
+
+        if response.status_code == 200:
+            message_id = response.json()["id"]
+            save_message_id(message_id)
+            print("Webhook sent successfully")
+            print(f"Saved message ID: {message_id}")
+        else:
+            print(f"Error sending webhook: {response.status_code}")
+            print(response.text)
+
+    except requests.exceptions.RequestException as error:
+        print(f"Request error: {error}")
+
+def update_webhook(payload,):
+    message_id = load_message_id()
+
+    if not message_id:
+        print("No saved ID found")
+        return False
+
+    edit_url = webhook_url + f"/messages/{message_id}"
+
+    try:
+        response = requests.patch(edit_url, json=payload, timeout=10)
+
+        if response.status_code == 200:
+            print(f"Updating at {datetime.now().strftime('%H:%M:%S')}")
+            return True
+        else:
+            print(f"Error updating message: {response.status_code}")
+            print(response.text)
+            return False
+
+    except requests.exceptions.RequestException as error:
+        print(f"Request error: {error}")
+        return False
+
+
+def normal():   
+    print("run in normal mode?")
+    run_n = input("Y/N: ").lower()
+
+    if run_n == "y":
+
+        if cyclic_mode:
+            print(f"Running in cyclic mode (every {cyclic_time} sec)")
+            print("Press CTRL + C to stop")
+
+            try:
+                while True:
+                    payload = create_real_message()
+                    updated = update_webhook(payload)
+
+                    if not updated:
+                        print("Could not update, sending new message")
+                        send_webhook_new(payload)
+
+                    time.sleep(cyclic_time)
+
+            except KeyboardInterrupt:
+                print("\nCyclic mode stopped by user")
+
+        else:
+            payload = create_real_message()
+            updated = update_webhook(payload)
+
+            if not updated:
+                print("Could not update, sending new message")
+                send_webhook_new(payload)
+    else:
+        return
+
+while start_up:
+    if test_mode_active == False:
+        normal()
+    print(datetime.now().strftime("%H:%M:%S"))
+    print("Initiate test mode?")
+    testmode = input("Y/N: ").strip().lower()
+
+    if testmode == "y" and test_mode_active:
+        print("Want to send your own test message?")
+        print("Can be empty for standard text")
+        test_message = input("Enter message here: ")
+
+        payload = create_test_payload(test_message)
+
+        updated = update_webhook(payload)
+
+        if not updated:
+            print("No test message found yet, sending new one")
+            send_webhook_new(payload)
+
+    elif testmode == "n":
+        start_up = False
+        print("Test mode skipped")
+        print("Loading basic functions")
+        time.sleep(1)
+        normal()
+
+    else:
+        print("Please make a valid choice")
