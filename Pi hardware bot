@@ -4,98 +4,176 @@ import json
 import requests
 from datetime import datetime
 import psutil
+import questionary
 
 
-# config
-pi_name = "*"
-webhook_url = "*"
-Bot_name = "*"
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+CONFIG_FILE = "config.json"
 message_id_file = "message_id.txt"
-test_mode_active = True
-cyclic_mode = True #Set to false if testing and want to do each cycle
-cyclic_time = 60 #Sec
-start_up = True
 
+default_config = {
+    "pi_name": "charizard01",
+    "webhook_url": "PUT_YOUR_WEBHOOK_HERE",
+    "bot_name": "Bearish Bot",
+    "cyclic_mode": True,
+    "cyclic_time": 60
+}
+
+def create_config_if_missing():
+    if not os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "w") as file:
+            json.dump(default_config, file, indent=4)
+
+
+def load_config():
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as file:
+            config = json.load(file)
+
+        # fill missing keys
+        for key, value in default_config.items():
+            if key not in config:
+                config[key] = value
+
+        save_config(config)
+        return config
+
+    except (json.JSONDecodeError, FileNotFoundError):
+        print("Config broken or missing → recreating")
+        save_config(default_config)
+        return default_config.copy()
+
+
+def save_config(config):
+    with open(CONFIG_FILE, "w") as file:
+        json.dump(config, file, indent=4)
+ 
+def settings_menu(config):
+    clear_screen()
+    while True:
+        choice = questionary.select(
+            "=== Settings ===",
+            choices=[
+                f"Change pi name ({config['pi_name']})",
+                f"Change Discord Webhook ({config['webhook_url']})",
+                f"Change update interval ({config['cyclic_time']})",
+                f"Toggle cyclic mode ({config['cyclic_mode']})",
+                "Back"
+            ]
+        ).ask()
+
+        if choice is None or choice == "Back":
+            break
+
+        if choice.startswith("Change pi name"):
+            new_name = questionary.text(
+                "Enter new pi name:",
+                default=config["pi_name"]
+            ).ask()
+
+            if new_name:
+                config["pi_name"] = new_name
+                save_config(config)
+        
+        elif choice.startswith("Change Discord Webhook"):
+            new_webhook_address = questionary.text(
+            "Enter webhook url:",
+            default=config["webhook_url"]
+            ).ask()
+
+            if new_webhook_address is not None and new_webhook_address != "":
+                config["webhook_url"] = new_webhook_address
+                save_config(config)
+
+            else:
+                print("Webhook not changed")
+
+        elif choice.startswith("Change update interval"):
+            new_interval = questionary.text(
+                "Enter update interval in seconds:",
+                default=str(config["cyclic_time"])
+            ).ask()
+
+            if new_interval and new_interval.isdigit():
+                config["cyclic_time"] = int(new_interval)
+                save_config(config)
+            else:
+                print("Invalid number")
+
+        elif choice.startswith("Toggle cyclic mode"):
+            config["cyclic_mode"] = not config["cyclic_mode"]
+            save_config(config)
+            print("Cyclic mode is now:", config["cyclic_mode"])
 
 def cpu_lookup():
-    cpu_usage = psutil.cpu_percent(interval=1)
-    return cpu_usage
+    return psutil.cpu_percent(interval=1)
+
 
 def ram_lookup():
-    ram = psutil.virtual_memory()
-    return ram 
+    return psutil.virtual_memory()
+
 
 def boot_time_lookup():
-    boot_time = datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
-    return boot_time
+    return datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
+
 
 def make_bar(percent):
     bar_length = 10
-
     filled = int((percent / 100) * bar_length)
     empty = bar_length - filled
-
     bar = "█" * filled + "-" * empty
+    return f"[{bar}] {percent}%"
 
-    return(f"[{bar}] {percent}%")
-    
 
-def disk_lookup():
-    disk = psutil.disk_usage()
-    print(type(disk))
-    print(dir(disk))
-    return disk
+def create_test_payload(config, test_message):
+    cpu_bar = make_bar(cpu_lookup())
+    ram_bar = make_bar(ram_lookup().percent)
 
-def create_test_payload(test_message):
-    cpu_usage = cpu_lookup()
-    percent = cpu_usage
-    cpu_bar = make_bar(percent)
-    ram = ram_lookup()
-    percent = ram.percent
-    ram_bar = make_bar(percent)
     if test_message == "":
         test_message = "Service is running"
-    
+
     return {
-        "username": Bot_name,
+        "username": config["bot_name"],
         "embeds": [
             {
                 "title": "Status Update",
-                "description": f"{test_message}\nCPU: {cpu_bar}%\nRAM used:({ram_bar}\n)",
+                "description": f"{test_message}\nCPU: {cpu_bar}\nRAM used: {ram_bar}",
                 "color": 65232
             }
         ]
     }
 
-def create_real_message():
-    now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
-    cpu_usage = cpu_lookup()
-    percent = cpu_usage
-    cpu_bar = make_bar(percent)
-    ram = ram_lookup()
-    percent = ram.percent
-    ram_bar = make_bar(percent)
+
+def create_real_message(config):
+    current_time = datetime.now().strftime("%H:%M:%S")
+    cpu_bar = make_bar(cpu_lookup())
+    ram_bar = make_bar(ram_lookup().percent)
     boot_time = boot_time_lookup()
-    return{
-       "username": Bot_name,
+
+    return {
+        "username": config["bot_name"],
         "embeds": [
             {
-               "title": f"{pi_name}",
-               "description": f"update time: {current_time}\n"
-               f"Boot time: {boot_time}\n"
-               f"Update cycle: {cyclic_time} seconds\n"
-               f"CPU: {cpu_bar}%\n"
-               f"RAM used:({ram_bar}\n"
-               " ",
-               "color": 65280 
-           }
-       ]
-    }   
+                "title": config["pi_name"],
+                "description": (
+                    f"Update time: {current_time}\n"
+                    f"Boot time: {boot_time}\n"
+                    f"Update cycle: {config['cyclic_time']} seconds\n"
+                    f"CPU: {cpu_bar}\n"
+                    f"RAM used: {ram_bar}"
+                ),
+                "color": 65280
+            }
+        ]
+    }
+
 
 def save_message_id(message_id):
     with open(message_id_file, "w", encoding="utf-8") as file:
         file.write(message_id)
+
 
 def load_message_id():
     if os.path.exists(message_id_file):
@@ -103,7 +181,10 @@ def load_message_id():
             return file.read().strip()
     return None
 
-def send_webhook_new(payload): #we only do this once!
+
+def send_webhook_new(config, payload):
+    webhook_url = config["webhook_url"]
+
     try:
         response = requests.post(webhook_url + "?wait=true", json=payload, timeout=10)
 
@@ -119,7 +200,9 @@ def send_webhook_new(payload): #we only do this once!
     except requests.exceptions.RequestException as error:
         print(f"Request error: {error}")
 
-def update_webhook(payload,):
+
+def update_webhook(config, payload):
+    webhook_url = config["webhook_url"]
     message_id = load_message_id()
 
     if not message_id:
@@ -144,66 +227,81 @@ def update_webhook(payload,):
         return False
 
 
-def normal():   
-    print("run in normal mode?")
-    run_n = input("Y/N: ").lower()
+def normal(config):
+    clear_screen()
+    run_n = questionary.confirm(
+        "Run in normal mode?",
+        default=True
+    ).ask()
 
-    if run_n == "y":
-
-        if cyclic_mode:
-            print(f"Running in cyclic mode (every {cyclic_time} sec)")
-            print("Press CTRL + C to stop")
-
-            try:
-                while True:
-                    payload = create_real_message()
-                    updated = update_webhook(payload)
-
-                    if not updated:
-                        print("Could not update, sending new message")
-                        send_webhook_new(payload)
-
-                    time.sleep(cyclic_time)
-
-            except KeyboardInterrupt:
-                print("\nCyclic mode stopped by user")
-
-        else:
-            payload = create_real_message()
-            updated = update_webhook(payload)
-
-            if not updated:
-                print("Could not update, sending new message")
-                send_webhook_new(payload)
-    else:
+    if run_n is not True:
         return
 
-while start_up:
-    if test_mode_active == False:
-        normal()
-    print(datetime.now().strftime("%H:%M:%S"))
-    print("Initiate test mode?")
-    testmode = input("Y/N: ").strip().lower()
+    if config["cyclic_mode"]:
+        print(f"Running in cyclic mode (every {config['cyclic_time']} sec)")
+        print("Press CTRL + C to stop")
 
-    if testmode == "y" and test_mode_active:
-        print("Want to send your own test message?")
-        print("Can be empty for standard text")
-        test_message = input("Enter message here: ")
+        try:
+            while True:
+                payload = create_real_message(config)
+                updated = update_webhook(config, payload)
 
-        payload = create_test_payload(test_message)
+                if not updated:
+                    print("Could not update, sending new message")
+                    send_webhook_new(config, payload)
 
-        updated = update_webhook(payload)
+                time.sleep(config["cyclic_time"])
+
+        except KeyboardInterrupt:
+            print("\nCyclic mode stopped by user")
+
+    else:
+        payload = create_real_message(config)
+        updated = update_webhook(config, payload)
 
         if not updated:
-            print("No test message found yet, sending new one")
-            send_webhook_new(payload)
+            print("Could not update, sending new message")
+            send_webhook_new(config, payload)
 
-    elif testmode == "n":
-        start_up = False
+
+def main_menu():
+    return questionary.select(
+        "=== Main Menu ===",
+        choices=[
+            questionary.Choice("Start server", value="1"),
+            questionary.Choice("Test mode", value="4"),
+            questionary.Choice("Settings", value="2"),
+            questionary.Choice("Exit", value="exit"),
+        ]
+    ).ask()
+
+
+create_config_if_missing()
+config = load_config()
+
+while True:
+    clear_screen()
+    menu_choice = main_menu()
+
+    if menu_choice == "1":
         print("Test mode skipped")
         print("Loading basic functions")
         time.sleep(1)
-        normal()
+        normal(config)
 
-    else:
-        print("Please make a valid choice")
+    elif menu_choice == "2":
+        settings_menu(config)
+
+    elif menu_choice == "4":
+        print("Want to send your own test message?")
+        print("Can be empty for standard text")
+        test_message = input("Enter message here: ")
+        payload = create_test_payload(config, test_message)
+        updated = update_webhook(config, payload)
+
+        if not updated:
+            print("No saved message found yet, sending new one")
+            send_webhook_new(config, payload)
+
+    elif menu_choice == "exit" or menu_choice is None:
+        break
