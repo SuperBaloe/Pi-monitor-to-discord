@@ -19,6 +19,12 @@ default_config = {
     "bot_name": "Bearish Bot",
     "cyclic_mode": True,
     "cyclic_time": 60
+    #toggle's for what to show in message
+    "show_cpu": True,
+    "show_ram": True,
+    "show_disk": True,
+    "show_temp": True,
+    "show_ip": True,
 }
 
 def create_config_if_missing():
@@ -106,6 +112,31 @@ def settings_menu(config):
             config["cyclic_mode"] = not config["cyclic_mode"]
             save_config(config)
             print("Cyclic mode is now:", config["cyclic_mode"])
+
+        elif choice.startswith("Toggle CPU bar"):
+            config["show_cpu"] = not config["show_cpu"]
+            save_config(config)
+            print("CPU bar is now:", config["show_cpu"])
+
+        elif choice.startswith("Toggle RAM bar"):
+            config["show_ram"] = not config["show_ram"]
+            save_config(config)
+            print("ram bar is now:", config["show_ram"])
+
+        elif choice.startswith("Toggle disk bar"):
+            config["show_disk"] = not config["show_disk"]
+            save_config(config)
+            print("disk bar is now:", config["show_disk"])
+
+        elif choice.startswith("Toggle temp bar"):
+            config["show_temp"] = not config["show_temp"]
+            save_config(config)
+            print("CPU bar is temp:", config["show_temp"])  
+
+        elif choice.startswith("Toggle local IP"):
+            config["show_ip"] = not config["show_ip"]
+            save_config(config)
+            print("show local ip is now:", config["show_ip"])
 
 def cpu_lookup():
     return psutil.cpu_percent(interval=1)
