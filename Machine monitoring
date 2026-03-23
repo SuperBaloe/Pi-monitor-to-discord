@@ -145,10 +145,29 @@ def cpu_lookup():
 def ram_lookup():
     return psutil.virtual_memory()
 
+def disk_lookup():
+    return psutil.disk_usage('/')
+
+def cpu_temp_lookup():
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+            temp = int(f.read()) / 1000
+            return temp
+    except:
+        return None
+    
+def ip_lookup():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return "No IP"
 
 def boot_time_lookup():
     return datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
-
 
 def make_bar(percent):
     bar_length = 10
@@ -156,7 +175,6 @@ def make_bar(percent):
     empty = bar_length - filled
     bar = "█" * filled + "-" * empty
     return f"[{bar}] {percent}%"
-
 
 def create_test_payload(config, test_message):
     cpu_bar = make_bar(cpu_lookup())
@@ -179,27 +197,44 @@ def create_test_payload(config, test_message):
 
 def create_real_message(config):
     current_time = datetime.now().strftime("%H:%M:%S")
-    cpu_bar = make_bar(cpu_lookup())
-    ram_bar = make_bar(ram_lookup().percent)
     boot_time = boot_time_lookup()
+
+    description = (
+        f"Update time: {current_time}\n"
+        f"Boot time: {boot_time}\n"
+        f"Update cycle: {config['cyclic_time']} seconds\n"
+    )
+
+    if config["show_cpu"]:
+        description += f"CPU: {make_bar(cpu_lookup())}\n"
+
+    if config["show_ram"]:
+        description += f"RAM: {make_bar(ram_lookup().percent)}\n"
+
+    if config["show_disk"]:
+        disk = disk_lookup()
+        description += f"Disk: {make_bar(disk.percent)}\n"
+
+    if config["show_temp"]:
+        temp = cpu_temp_lookup()
+        if temp is not None:
+            description += f"Temp: {temp:.1f}°C\n"
+        else:
+            description += "Temp: N/A\n"
+
+    if config["show_ip"]:
+        description += f"IP: {ip_lookup()}\n"
 
     return {
         "username": config["bot_name"],
         "embeds": [
             {
                 "title": config["pi_name"],
-                "description": (
-                    f"Update time: {current_time}\n"
-                    f"Boot time: {boot_time}\n"
-                    f"Update cycle: {config['cyclic_time']} seconds\n"
-                    f"CPU: {cpu_bar}\n"
-                    f"RAM used: {ram_bar}"
-                ),
+                "description": description,
                 "color": 65280
             }
         ]
     }
-
 
 def save_message_id(message_id):
     with open(message_id_file, "w", encoding="utf-8") as file:
