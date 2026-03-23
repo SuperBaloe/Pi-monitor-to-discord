@@ -131,7 +131,7 @@ def settings_menu(config):
         elif choice.startswith("Toggle temp bar"):
             config["show_temp"] = not config["show_temp"]
             save_config(config)
-            print("CPU bar is temp:", config["show_temp"])  
+            print("temp bar is now:", config["show_temp"])  
 
         elif choice.startswith("Toggle local IP"):
             config["show_ip"] = not config["show_ip"]
