@@ -18,8 +18,7 @@
 
 Posts your machine CPU and RAM usages and uptime to Discord chat.
 
-![Discord Update](https://github.com/user-attachments/assets/c7449580-1f21-4271-925c-2bca5736430f>
-)
+![Discord Update](<img width="353" height="282" alt="image" src="https://github.com/user-attachments/assets/6bcc596f-9da4-49d1-8d3d-f4609d5eb7cb" />)
 
 ## Usage
 
