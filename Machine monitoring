@@ -5,7 +5,7 @@ import requests
 from datetime import datetime
 import psutil
 import questionary
-
+import socket
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -18,7 +18,7 @@ default_config = {
     "webhook_url": "PUT_YOUR_WEBHOOK_HERE",
     "bot_name": "Bearish Bot",
     "cyclic_mode": True,
-    "cyclic_time": 60
+    "cyclic_time": 60,
     #toggle's for what to show in message
     "show_cpu": True,
     "show_ram": True,
@@ -31,7 +31,6 @@ def create_config_if_missing():
     if not os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "w") as file:
             json.dump(default_config, file, indent=4)
-
 
 def load_config():
     try:
@@ -51,7 +50,6 @@ def load_config():
         save_config(default_config)
         return default_config.copy()
 
-
 def save_config(config):
     with open(CONFIG_FILE, "w") as file:
         json.dump(config, file, indent=4)
@@ -62,10 +60,15 @@ def settings_menu(config):
         choice = questionary.select(
             "=== Settings ===",
             choices=[
-                f"Change pi name ({config['pi_name']})",
-                f"Change Discord Webhook ({config['webhook_url']})",
-                f"Change update interval ({config['cyclic_time']})",
-                f"Toggle cyclic mode ({config['cyclic_mode']})",
+                f"Change pi name: {config['pi_name']} ",
+                f"Change Discord Webhook: {config['webhook_url']}",
+                f"Change update interval: {config['cyclic_time']}",
+                f"Toggle cyclic mode: {config['cyclic_mode']}",
+                f"Toggle CPU bar: {config['show_cpu']}",
+                f"Toggle RAM bar: {config['show_ram']}",
+                f"Toggle disk bar: {config['show_disk']}",
+                f"Toggle temp bar: {config['show_temp']}",
+                f"Toggle local IP: {config['show_ip']}",
                 "Back"
             ]
         ).ask()
@@ -136,11 +139,10 @@ def settings_menu(config):
         elif choice.startswith("Toggle local IP"):
             config["show_ip"] = not config["show_ip"]
             save_config(config)
-            print("show local ip is now:", config["show_ip"])
+            print("show local ip is now:", config["show_ip"])      
 
 def cpu_lookup():
     return psutil.cpu_percent(interval=1)
-
 
 def ram_lookup():
     return psutil.virtual_memory()
@@ -165,6 +167,7 @@ def ip_lookup():
         return ip
     except:
         return "No IP"
+
 
 def boot_time_lookup():
     return datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
@@ -193,7 +196,6 @@ def create_test_payload(config, test_message):
             }
         ]
     }
-
 
 def create_real_message(config):
     current_time = datetime.now().strftime("%H:%M:%S")
@@ -240,13 +242,11 @@ def save_message_id(message_id):
     with open(message_id_file, "w", encoding="utf-8") as file:
         file.write(message_id)
 
-
 def load_message_id():
     if os.path.exists(message_id_file):
         with open(message_id_file, "r", encoding="utf-8") as file:
             return file.read().strip()
     return None
-
 
 def send_webhook_new(config, payload):
     webhook_url = config["webhook_url"]
@@ -265,7 +265,6 @@ def send_webhook_new(config, payload):
 
     except requests.exceptions.RequestException as error:
         print(f"Request error: {error}")
-
 
 def update_webhook(config, payload):
     webhook_url = config["webhook_url"]
@@ -291,7 +290,6 @@ def update_webhook(config, payload):
     except requests.exceptions.RequestException as error:
         print(f"Request error: {error}")
         return False
-
 
 def normal(config):
     clear_screen()
@@ -329,7 +327,6 @@ def normal(config):
             print("Could not update, sending new message")
             send_webhook_new(config, payload)
 
-
 def main_menu():
     return questionary.select(
         "=== Main Menu ===",
@@ -340,7 +337,6 @@ def main_menu():
             questionary.Choice("Exit", value="exit"),
         ]
     ).ask()
-
 
 create_config_if_missing()
 config = load_config()
