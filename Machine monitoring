@@ -1,3 +1,4 @@
+import sys
 import os
 import time
 import json
@@ -53,94 +54,20 @@ def load_config():
 def save_config(config):
     with open(CONFIG_FILE, "w") as file:
         json.dump(config, file, indent=4)
- 
-def settings_menu(config):
-    clear_screen()
+
+def run_service(config):
+    print("Service started")
+    time.sleep(2)
+
     while True:
-        choice = questionary.select(
-            "=== Settings ===",
-            choices=[
-                f"Change pi name: {config['pi_name']} ",
-                f"Change Discord Webhook: {config['webhook_url']}",
-                f"Change update interval: {config['cyclic_time']}",
-                f"Toggle cyclic mode: {config['cyclic_mode']}",
-                f"Toggle CPU bar: {config['show_cpu']}",
-                f"Toggle RAM bar: {config['show_ram']}",
-                f"Toggle disk bar: {config['show_disk']}",
-                f"Toggle temp bar: {config['show_temp']}",
-                f"Toggle local IP: {config['show_ip']}",
-                "Back"
-            ]
-        ).ask()
+        payload = create_real_message(config)
+        updated = update_webhook(config, payload)
 
-        if choice is None or choice == "Back":
-            break
+        if not updated:
+            send_webhook_new(config, payload)
 
-        if choice.startswith("Change pi name"):
-            new_name = questionary.text(
-                "Enter new pi name:",
-                default=config["pi_name"]
-            ).ask()
-
-            if new_name:
-                config["pi_name"] = new_name
-                save_config(config)
-        
-        elif choice.startswith("Change Discord Webhook"):
-            new_webhook_address = questionary.text(
-            "Enter webhook url:",
-            default=config["webhook_url"]
-            ).ask()
-
-            if new_webhook_address is not None and new_webhook_address != "":
-                config["webhook_url"] = new_webhook_address
-                save_config(config)
-
-            else:
-                print("Webhook not changed")
-
-        elif choice.startswith("Change update interval"):
-            new_interval = questionary.text(
-                "Enter update interval in seconds:",
-                default=str(config["cyclic_time"])
-            ).ask()
-
-            if new_interval and new_interval.isdigit():
-                config["cyclic_time"] = int(new_interval)
-                save_config(config)
-            else:
-                print("Invalid number")
-
-        elif choice.startswith("Toggle cyclic mode"):
-            config["cyclic_mode"] = not config["cyclic_mode"]
-            save_config(config)
-            print("Cyclic mode is now:", config["cyclic_mode"])
-
-        elif choice.startswith("Toggle CPU bar"):
-            config["show_cpu"] = not config["show_cpu"]
-            save_config(config)
-            print("CPU bar is now:", config["show_cpu"])
-
-        elif choice.startswith("Toggle RAM bar"):
-            config["show_ram"] = not config["show_ram"]
-            save_config(config)
-            print("ram bar is now:", config["show_ram"])
-
-        elif choice.startswith("Toggle disk bar"):
-            config["show_disk"] = not config["show_disk"]
-            save_config(config)
-            print("disk bar is now:", config["show_disk"])
-
-        elif choice.startswith("Toggle temp bar"):
-            config["show_temp"] = not config["show_temp"]
-            save_config(config)
-            print("temp bar is now:", config["show_temp"])  
-
-        elif choice.startswith("Toggle local IP"):
-            config["show_ip"] = not config["show_ip"]
-            save_config(config)
-            print("show local ip is now:", config["show_ip"])      
-
+        time.sleep(config["cyclic_time"])
+      
 def cpu_lookup():
     return psutil.cpu_percent(interval=1)
 
@@ -167,7 +94,6 @@ def ip_lookup():
         return ip
     except:
         return "No IP"
-
 
 def boot_time_lookup():
     return datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
@@ -291,6 +217,93 @@ def update_webhook(config, payload):
         print(f"Request error: {error}")
         return False
 
+def settings_menu(config):
+    clear_screen()
+    while True:
+        choice = questionary.select(
+            "=== Settings ===",
+            choices=[
+                f"Change pi name: {config['pi_name']} ",
+                f"Change Discord Webhook: {config['webhook_url']}",
+                f"Change update interval: {config['cyclic_time']}",
+                f"Toggle cyclic mode: {config['cyclic_mode']}",
+                f"Toggle CPU bar: {config['show_cpu']}",
+                f"Toggle RAM bar: {config['show_ram']}",
+                f"Toggle disk bar: {config['show_disk']}",
+                f"Toggle temp bar: {config['show_temp']}",
+                f"Toggle local IP: {config['show_ip']}",
+                "Back"
+            ]
+        ).ask()
+
+        if choice is None or choice == "Back":
+            break
+
+        if choice.startswith("Change pi name"):
+            new_name = questionary.text(
+                "Enter new pi name:",
+                default=config["pi_name"]
+            ).ask()
+
+            if new_name:
+                config["pi_name"] = new_name
+                save_config(config)
+        
+        elif choice.startswith("Change Discord Webhook"):
+            new_webhook_address = questionary.text(
+            "Enter webhook url:",
+            default=config["webhook_url"]
+            ).ask()
+
+            if new_webhook_address is not None and new_webhook_address != "":
+                config["webhook_url"] = new_webhook_address
+                save_config(config)
+
+            else:
+                print("Webhook not changed")
+
+        elif choice.startswith("Change update interval"):
+            new_interval = questionary.text(
+                "Enter update interval in seconds:",
+                default=str(config["cyclic_time"])
+            ).ask()
+
+            if new_interval and new_interval.isdigit():
+                config["cyclic_time"] = int(new_interval)
+                save_config(config)
+            else:
+                print("Invalid number")
+
+        elif choice.startswith("Toggle cyclic mode"):
+            config["cyclic_mode"] = not config["cyclic_mode"]
+            save_config(config)
+            print("Cyclic mode is now:", config["cyclic_mode"])
+
+        elif choice.startswith("Toggle CPU bar"):
+            config["show_cpu"] = not config["show_cpu"]
+            save_config(config)
+            print("CPU bar is now:", config["show_cpu"])
+
+        elif choice.startswith("Toggle RAM bar"):
+            config["show_ram"] = not config["show_ram"]
+            save_config(config)
+            print("ram bar is now:", config["show_ram"])
+
+        elif choice.startswith("Toggle disk bar"):
+            config["show_disk"] = not config["show_disk"]
+            save_config(config)
+            print("disk bar is now:", config["show_disk"])
+
+        elif choice.startswith("Toggle temp bar"):
+            config["show_temp"] = not config["show_temp"]
+            save_config(config)
+            print("temp bar is now:", config["show_temp"])  
+
+        elif choice.startswith("Toggle local IP"):
+            config["show_ip"] = not config["show_ip"]
+            save_config(config)
+            print("show local ip is now:", config["show_ip"])
+
 def normal(config):
     clear_screen()
     run_n = questionary.confirm(
@@ -338,32 +351,43 @@ def main_menu():
         ]
     ).ask()
 
-create_config_if_missing()
-config = load_config()
+def main():
+    create_config_if_missing()
+    config = load_config()
 
-while True:
-    clear_screen()
-    menu_choice = main_menu()
+    if "--service" in sys.argv:
+        print("Running in service mode...")
+        run_service(config)
+        return
 
-    if menu_choice == "1":
-        print("Test mode skipped")
-        print("Loading basic functions")
-        time.sleep(1)
-        normal(config)
+    while True:
+        clear_screen()
+        menu_choice = main_menu()
 
-    elif menu_choice == "2":
-        settings_menu(config)
+        if menu_choice == "1":
+            print("Test mode skipped")
+            print("Loading basic functions")
+            time.sleep(1)
+            normal(config)
 
-    elif menu_choice == "4":
-        print("Want to send your own test message?")
-        print("Can be empty for standard text")
-        test_message = input("Enter message here: ")
-        payload = create_test_payload(config, test_message)
-        updated = update_webhook(config, payload)
+        elif menu_choice == "2":
+            settings_menu(config)
+            config = load_config()
 
-        if not updated:
-            print("No saved message found yet, sending new one")
-            send_webhook_new(config, payload)
+        elif menu_choice == "4":
+            print("Want to send your own test message?")
+            print("Can be empty for standard text")
+            test_message = input("Enter message here: ")
 
-    elif menu_choice == "exit" or menu_choice is None:
-        break
+            payload = create_test_payload(config, test_message)
+            updated = update_webhook(config, payload)
+
+            if not updated:
+                print("No saved message found yet, sending new one")
+                send_webhook_new(config, payload)
+
+        elif menu_choice == "exit" or menu_choice is None:
+            break
+
+if __name__ == "__main__":
+    main()
