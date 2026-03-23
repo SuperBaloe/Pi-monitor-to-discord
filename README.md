@@ -1,23 +1,17 @@
-following libraries are being used:
-Built-in:
-  os
-  time
-  json
-  datetime
-  socket
-Installed:
-  requests
-  psutil
-  questionary
+# Pi Monitor to Discord
 
-will post your machine cpu and ram usages and uptime to discord chat
+## Libraries
+- `RPi.GPIO` - Raspberry Pi GPIO access
+- `requests` - HTTP library for making requests
+- `pillow` - Python Imaging Library for image handling
 
-<img width="294" height="205" alt="image" src="https://github.com/user-attachments/assets/7931570c-7d4d-4873-a2b1-d30bd4fe4ab1" />
+## Features
+- Monitor Raspberry Pi temperature and CPU usage.
+- Send alerts to Discord on high temperatures.
 
-whole program can be used in the terminal. makes it own config and message id file
+## Images
+![Temperature Graph](path/to/temperature_graph.png "Temperature Over Time")  
+*This graph shows the CPU temperature over time.*  
 
-<img width="265" height="98" alt="image" src="https://github.com/user-attachments/assets/b26a9f80-0979-4ea9-978d-1adeb656004a" />
-^main menu
-
-<img width="383" height="256" alt="image" src="https://github.com/user-attachments/assets/e21e763d-d10e-4ff0-81ad-0ed4b7e928be" />
-^config
+![CPU Usage Graph](path/to/cpu_usage_graph.png "CPU Usage Over Time")  
+*This graph represents the CPU usage trends over the last hour.*
