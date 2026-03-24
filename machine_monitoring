@@ -26,6 +26,8 @@ default_config = {
     "show_disk": True,
     "show_temp": True,
     "show_ip": True,
+    "show_top_cpu_processes": True,
+    "show_top_ram_processes": True,
 }
 
 def create_config_if_missing():
@@ -67,7 +69,56 @@ def run_service(config):
             send_webhook_new(config, payload)
 
         time.sleep(config["cyclic_time"])
-      
+
+def top_processes_cpu_lookup(limit=3):
+    for proc in psutil.process_iter(["pid", "name"]):
+        try:
+            proc.cpu_percent(None)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+    time.sleep(1)
+
+    process_list = []
+
+    for proc in psutil.process_iter(["pid", "name", "cpu_percent"]):
+        try:
+            info = proc.info
+
+            if info["pid"] == 0: #patched for windows so idle time is not shown
+                continue
+
+            process_list.append(info)
+
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+    process_list = sorted(
+        process_list,
+        key=lambda x: x["cpu_percent"],
+        reverse=True
+    )
+
+    return process_list[:limit]
+
+def top_processes_ram_lookup(limit=3):
+    process_list = []
+
+    for proc in psutil.process_iter(["pid", "name", "memory_percent"]):
+        try:
+            info = proc.info
+            process_list.append(info)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+    process_list = sorted(
+        process_list,
+        key=lambda x: x["memory_percent"],
+        reverse=True
+    )
+
+    return process_list[:limit]
+
 def cpu_lookup():
     return psutil.cpu_percent(interval=1)
 
@@ -97,6 +148,38 @@ def ip_lookup():
 
 def boot_time_lookup():
     return datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
+
+def format_top_cpu_processes(limit=3):
+    top_processes = top_processes_cpu_lookup(limit)
+
+    if not top_processes:
+        return "No process data"
+
+    lines = []
+    for i, proc in enumerate(top_processes, start=1):
+        name = proc["name"] if proc["name"] else "Unknown"
+        cpu = proc["cpu_percent"]
+        pid = proc["pid"]
+
+        lines.append(f"{i}. {name} (PID {pid}) - {cpu}%")
+
+    return "\n".join(lines)
+
+def format_top_ram_processes(limit=3):
+    top_processes = top_processes_ram_lookup(limit)
+
+    if not top_processes:
+        return "No process data"
+
+    lines = []
+    for i, proc in enumerate(top_processes, start=1):
+        name = proc["name"] if proc["name"] else "Unknown"
+        ram = proc["memory_percent"]
+        pid = proc["pid"]
+
+        lines.append(f"{i}. {name} (PID {pid}) - {ram:.1f}%")
+
+    return "\n".join(lines)
 
 def make_bar(percent):
     bar_length = 10
@@ -152,6 +235,12 @@ def create_real_message(config):
 
     if config["show_ip"]:
         description += f"IP: {ip_lookup()}\n"
+
+    if config["show_top_cpu_processes"]:
+        description += f"Top CPU processes:\n{format_top_cpu_processes()}\n"
+
+    if config["show_top_ram_processes"]:
+        description += f"Top RAM processes:\n{format_top_ram_processes()}\n"
 
     return {
         "username": config["bot_name"],
@@ -218,8 +307,8 @@ def update_webhook(config, payload):
         return False
 
 def settings_menu(config):
-    clear_screen()
     while True:
+        clear_screen()
         choice = questionary.select(
             "=== Settings ===",
             choices=[
@@ -232,6 +321,8 @@ def settings_menu(config):
                 f"Toggle disk bar: {config['show_disk']}",
                 f"Toggle temp bar: {config['show_temp']}",
                 f"Toggle local IP: {config['show_ip']}",
+                f"Toggle top CPU processes: {config['show_top_cpu_processes']}",
+                f"Toggle top RAM processes: {config['show_top_ram_processes']}",
                 "Back"
             ]
         ).ask()
@@ -303,6 +394,16 @@ def settings_menu(config):
             config["show_ip"] = not config["show_ip"]
             save_config(config)
             print("show local ip is now:", config["show_ip"])
+
+        elif choice.startswith("Toggle top CPU"):
+            config["show_top_cpu_processes"] = not config["show_top_cpu_processes"]
+            save_config(config)
+            print("show top cpu processes is now:", config["show_top_cpu_processes"])
+
+        elif choice.startswith("Toggle top RAM"):
+            config["show_top_ram_processes"] = not config["show_top_ram_processes"]
+            save_config(config)
+            print("show top ram processes is now:", config["show_top_ram_processes"])        
 
 def normal(config):
     clear_screen()
