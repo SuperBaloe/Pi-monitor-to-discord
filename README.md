@@ -53,10 +53,10 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=your_user
-WorkingDirectory=/path/to/Pi-monitor-to-discord
-ExecStart=/usr/bin/python3 /path/to/Pi-monitor-to-discord/main.py
-Restart=on-failure
-RestartSec=10
+WorkingDirectory=/home/your_user/Pi-monitor-to-discord
+ExecStart=/usr/bin/python3 /home/your_user/Pi-monitor-to-discord/machine_monitoring.py --service
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
@@ -66,8 +66,8 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable pi-monitor-discord.service
-sudo systemctl start pi-monitor-discord.service
+sudo systemctl enable pi-monitor.service
+sudo systemctl start pi-monitor.service
 ```
 
 ### Service Management Commands
