@@ -22,6 +22,7 @@ default_config = {
     "cyclic_time": 60,
     #toggle's for what to show in message
     "show_cpu": True,
+    "show_cpu_count": True,
     "show_ram": True,
     "show_disk": True,
     "show_temp": True,
@@ -122,6 +123,9 @@ def top_processes_ram_lookup(limit=3):
 def cpu_lookup():
     return psutil.cpu_percent(interval=1)
 
+def cpu_count_lookup():
+    return psutil.cpu_count()
+
 def ram_lookup():
     return psutil.virtual_memory()
 
@@ -213,11 +217,14 @@ def create_real_message(config):
     description = (
         f"Update time: {current_time}\n"
         f"Boot time: {boot_time}\n"
-        f"Update cycle: {config['cyclic_time']} seconds\n"
+        f"Update cycle: {config['cyclic_time']} seconds\n\n"
     )
 
     if config["show_cpu"]:
         description += f"CPU: {make_bar(cpu_lookup())}\n"
+
+    if config["show_cpu_count"]:
+        description += f"CPU cores: {cpu_count_lookup()}\n"
 
     if config["show_ram"]:
         description += f"RAM: {make_bar(ram_lookup().percent)}\n"
@@ -234,10 +241,10 @@ def create_real_message(config):
             description += "Temp: N/A\n"
 
     if config["show_ip"]:
-        description += f"IP: {ip_lookup()}\n"
+        description += f"IP: {ip_lookup()}\n\n"
 
     if config["show_top_cpu_processes"]:
-        description += f"Top CPU processes:\n{format_top_cpu_processes()}\n"
+        description += f"Top CPU processes:\n{format_top_cpu_processes()}\n\n"
 
     if config["show_top_ram_processes"]:
         description += f"Top RAM processes:\n{format_top_ram_processes()}\n"
@@ -317,6 +324,7 @@ def settings_menu(config):
                 f"Change update interval: {config['cyclic_time']}",
                 f"Toggle cyclic mode: {config['cyclic_mode']}",
                 f"Toggle CPU bar: {config['show_cpu']}",
+                f"Toggle CPU count: {config['show_cpu_count']}",
                 f"Toggle RAM bar: {config['show_ram']}",
                 f"Toggle disk bar: {config['show_disk']}",
                 f"Toggle temp bar: {config['show_temp']}",
@@ -374,6 +382,11 @@ def settings_menu(config):
             config["show_cpu"] = not config["show_cpu"]
             save_config(config)
             print("CPU bar is now:", config["show_cpu"])
+
+        elif choice.startswith("Toggle CPU count:"):
+            config["show_cpu_count"] = not config["show_cpu_count"]
+            save_config(config)
+            print("CPU count is now:", config["show_cpu_count"])
 
         elif choice.startswith("Toggle RAM bar"):
             config["show_ram"] = not config["show_ram"]
