@@ -98,3 +98,4 @@ sudo systemctl restart pi-monitor-discord.service
 - The service will automatically restart if it crashes (with a 10-second delay)
 - Logs can be viewed using `journalctl` for debugging
 - The service runs as the specified user, so ensure they have proper file permissions
+- Please use 1 webhook for 1 machine. Otherwise you get duplicate messages because of webhook send limit of discord
